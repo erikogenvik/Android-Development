@@ -447,12 +447,7 @@ public class ApkBuilder extends BaseBuilder {
                     }
 
                     // get the resource folder
-                    IFolder resFolder = project.getFolder(AndroidConstants.WS_RESOURCES);
-                    String projectSpecificResPath = project.getPersistentProperty(AdtPlugin.PROP_RES_DIRECTORY);
-                    if (projectSpecificResPath != null) {
-                    	resFolder = project.getFolder(projectSpecificResPath);// project.getFolder(AndroidConstants.WS_SEP + "target" + AndroidConstants.WS_SEP + "generated-sources" + AndroidConstants.WS_SEP + "combined-resources" + AndroidConstants.WS_SEP + "res");
-                    }
-
+                    IFolder resFolder = project.getFolder(AdtPlugin.getResourceLocation(project));
                     IFolder resOverlayFolder = project.getFolder(AndroidConstants.WS_SEP + "res-overlay");
                     
 

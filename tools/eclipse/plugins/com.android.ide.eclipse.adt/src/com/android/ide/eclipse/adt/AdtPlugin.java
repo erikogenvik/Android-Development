@@ -1448,4 +1448,18 @@ public class AdtPlugin extends AbstractUIPlugin {
         return String.format(Messages.Console_Data_Project_Tag, c, tag);
     }
 
+    public static String getResourceLocation(IProject project)
+    {
+        String projectSpecificResPath;
+		try {
+			projectSpecificResPath = project.getPersistentProperty(AdtPlugin.PROP_RES_DIRECTORY);
+	        if (projectSpecificResPath != null) {
+	        	return projectSpecificResPath;        
+	        }
+		}
+		catch (CoreException e) {
+			e.printStackTrace();
+		}
+        return AndroidConstants.WS_RESOURCES;
+    }
 }

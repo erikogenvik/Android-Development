@@ -199,7 +199,7 @@ public class ResourceManagerBuilder extends BaseBuilder {
 
             // refresh the res folder.
             IFolder resFolder = project.getFolder(
-                    AndroidConstants.WS_RESOURCES);
+            		AdtPlugin.getResourceLocation(project));
             resFolder.refreshLocal(IResource.DEPTH_INFINITE, monitor);
 
             // Also refresh the assets folder to make sure the ApkBuilder

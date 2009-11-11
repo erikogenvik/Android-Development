@@ -106,7 +106,14 @@ public class AndroidPropertyPage extends PropertyPage implements IWorkbenchPrope
             */
         }
         
-        DirectoryFieldEditor resDirectoryFieldEditor = new DirectoryFieldEditor("resDirectory", "Resource directory", top);
+        l = new Label(top, SWT.SEPARATOR | SWT.HORIZONTAL);
+        l.setLayoutData(new GridData(GridData.FILL_HORIZONTAL));
+        
+        Composite directoryContainer = new Composite(top, SWT.NONE);
+        directoryContainer.setLayoutData(new GridData(GridData.FILL_BOTH));
+        directoryContainer.setLayout(new GridLayout(1, false));
+        
+        DirectoryFieldEditor resDirectoryFieldEditor = new DirectoryFieldEditor("resDirectory", "Resource directory", directoryContainer);
         
         try {
 			resDirectoryFieldEditor.setStringValue(mProject.getPersistentProperty(AdtPlugin.PROP_RES_DIRECTORY));
