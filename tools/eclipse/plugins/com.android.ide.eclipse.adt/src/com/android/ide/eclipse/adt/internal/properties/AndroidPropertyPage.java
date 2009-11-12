@@ -19,6 +19,8 @@ package com.android.ide.eclipse.adt.internal.properties;
 import java.util.Map;
 import com.android.sdklib.internal.project.ApkSettings;
 
+import org.eclipse.core.resources.IContainer;
+import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
@@ -50,6 +52,49 @@ import com.android.sdkuilib.internal.widgets.SdkTargetSelector;
  */
 public class AndroidPropertyPage extends PropertyPage implements IWorkbenchPropertyPage {
 
+	private class ContainerButtonFieldEditor extends StringButtonFieldEditor
+    {
+
+		public ContainerButtonFieldEditor(String name, String labelText, Composite parent) {
+			super(name, labelText, parent);
+		}
+
+		@Override
+		protected String changePressed() {
+			try {
+				IContainer selection = mProject;
+				String currentValue = getStringValue();
+				if (currentValue != null && !currentValue.equals("")) {
+					selection = mProject.getFolder(getStringValue());
+				}
+				
+				ContainerSelectionDialog dialog = new ContainerSelectionDialog(getShell(), selection, false, "");
+				dialog.setTitle("Resource location");
+				dialog.setMessage("Select the location of the Android resources (it's currently only possible to select a location within the current project):");
+				
+				dialog.open();
+				Object[] results = dialog.getResult();
+				if (results != null && results.length > 0) {
+					Object firstSelection = results[0];
+					if (firstSelection instanceof IPath) {
+						//The path is local to the workspace, so we'll have to remove the first part to get the project local path
+						IPath resourcePath = (IPath)firstSelection;
+						String localPath = resourcePath.toString();
+						if (localPath.startsWith("/" + mProject.getName())) {
+							return localPath.substring(("/" + mProject.getName()).length());
+						} else {
+							AdtPlugin.printErrorToConsole("Not a project local path: " + localPath + ".");
+						}
+					}
+				}
+				return null;
+			} catch (Exception e) {
+				AdtPlugin.printErrorToConsole("Error when trying to select resource location.", e);
+				return null;
+			}
+		}
+    };
+	
 	private IProject mProject;
     private SdkTargetSelector mSelector;
     // APK-SPLIT: This is not yet supported, so we hide the UI
@@ -117,33 +162,7 @@ public class AndroidPropertyPage extends PropertyPage implements IWorkbenchPrope
         directoryContainer.setLayout(new GridLayout(1, false));
         
         //The field editor should allow for selection of a container within the current project. I couldn't figure out how to do that, so we'll show the whole workbench for now.
-        final StringButtonFieldEditor resDirectoryFieldEditor = new StringButtonFieldEditor("resDirectory", "Resource directory", directoryContainer)
-        {
-
-			@Override
-			protected String changePressed() {
-				ContainerSelectionDialog dialog = new ContainerSelectionDialog(getShell(), mProject.getFolder(AdtPlugin.getResourceLocation(mProject)), false, "");
-				dialog.setTitle("Resource location");
-				dialog.setMessage("Select the location of the Android resources (it's currently only possible to select a location within the current project):");
-				
-				dialog.open();
-				Object[] results = dialog.getResult();
-				if (results != null && results.length > 0) {
-					Object firstSelection = results[0];
-					if (firstSelection instanceof IPath) {
-						//The path is local to the workspace, so we'll have to remove the first part to get the project local path
-						IPath resourcePath = (IPath)firstSelection;
-						String localPath = resourcePath.toString();
-						if (localPath.startsWith("/" + mProject.getName())) {
-							return localPath.substring(("/" + mProject.getName()).length());
-						} else {
-							AdtPlugin.printErrorToConsole("Not a project local path: " + localPath + ".");
-						}
-					}
-				}
-				return null;
-			}
-        };
+        final StringButtonFieldEditor resDirectoryFieldEditor = new ContainerButtonFieldEditor("resDirectory", "Resource directory", directoryContainer);
                 
         try {
 			resDirectoryFieldEditor.setStringValue(mProject.getPersistentProperty(AdtPlugin.PROP_RES_DIRECTORY));
@@ -154,7 +173,6 @@ public class AndroidPropertyPage extends PropertyPage implements IWorkbenchPrope
         
         resDirectoryFieldEditor.setPropertyChangeListener(new IPropertyChangeListener() {
 			
-			@Override
 			public void propertyChange(PropertyChangeEvent event) {
         		try {
 					mProject.setPersistentProperty(AdtPlugin.PROP_RES_DIRECTORY, event.getNewValue().toString());
@@ -166,6 +184,29 @@ public class AndroidPropertyPage extends PropertyPage implements IWorkbenchPrope
 		});
       
 
+        
+        //The field editor should allow for selection of a container within the current project. I couldn't figure out how to do that, so we'll show the whole workbench for now.
+        final StringButtonFieldEditor resOverlayDirectoryFieldEditor = new ContainerButtonFieldEditor("resOverlayDirectory", "Resource overlay directory", directoryContainer);
+                
+        try {
+        	resOverlayDirectoryFieldEditor.setStringValue(mProject.getPersistentProperty(AdtPlugin.PROP_RES_OVERLAY_DIRECTORY));
+		}
+		catch (CoreException e) {
+			AdtPlugin.printErrorToConsole("Error when trying to set resource overlay location property.", e);
+		}
+        
+		resOverlayDirectoryFieldEditor.setPropertyChangeListener(new IPropertyChangeListener() {
+			
+			public void propertyChange(PropertyChangeEvent event) {
+        		try {
+					mProject.setPersistentProperty(AdtPlugin.PROP_RES_OVERLAY_DIRECTORY, event.getNewValue().toString());
+				}
+				catch (CoreException e) {
+					AdtPlugin.printErrorToConsole("Error when trying to get resource overlay location property.", e);
+				}
+			}
+		});        
+        
         mSelector.setSelectionListener(new SelectionAdapter() {
             @Override
             public void widgetSelected(SelectionEvent e) {

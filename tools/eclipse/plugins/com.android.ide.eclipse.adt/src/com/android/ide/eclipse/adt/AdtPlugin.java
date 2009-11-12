@@ -16,40 +16,19 @@
 
 package com.android.ide.eclipse.adt;
 
-import com.android.ddmuilib.StackTracePanel;
-import com.android.ddmuilib.StackTracePanel.ISourceRevealer;
-import com.android.ddmuilib.console.DdmConsole;
-import com.android.ddmuilib.console.IDdmConsole;
-import com.android.ide.eclipse.adt.internal.VersionCheck;
-import com.android.ide.eclipse.adt.internal.editors.IconFactory;
-import com.android.ide.eclipse.adt.internal.editors.layout.LayoutEditor;
-import com.android.ide.eclipse.adt.internal.editors.menu.MenuEditor;
-import com.android.ide.eclipse.adt.internal.editors.resources.ResourcesEditor;
-import com.android.ide.eclipse.adt.internal.editors.xml.XmlEditor;
-import com.android.ide.eclipse.adt.internal.launch.AndroidLaunchController;
-import com.android.ide.eclipse.adt.internal.preferences.BuildPreferencePage;
-import com.android.ide.eclipse.adt.internal.project.AndroidClasspathContainerInitializer;
-import com.android.ide.eclipse.adt.internal.project.BaseProjectHelper;
-import com.android.ide.eclipse.adt.internal.project.ExportHelper;
-import com.android.ide.eclipse.adt.internal.project.ProjectHelper;
-import com.android.ide.eclipse.adt.internal.project.ExportHelper.IExportCallback;
-import com.android.ide.eclipse.adt.internal.resources.manager.ProjectResources;
-import com.android.ide.eclipse.adt.internal.resources.manager.ResourceFolder;
-import com.android.ide.eclipse.adt.internal.resources.manager.ResourceFolderType;
-import com.android.ide.eclipse.adt.internal.resources.manager.ResourceManager;
-import com.android.ide.eclipse.adt.internal.resources.manager.ResourceMonitor;
-import com.android.ide.eclipse.adt.internal.resources.manager.ResourceMonitor.IFileListener;
-import com.android.ide.eclipse.adt.internal.sdk.AndroidTargetParser;
-import com.android.ide.eclipse.adt.internal.sdk.LoadStatus;
-import com.android.ide.eclipse.adt.internal.sdk.Sdk;
-import com.android.ide.eclipse.adt.internal.sdk.Sdk.ITargetChangeListener;
-import com.android.ide.eclipse.adt.internal.ui.EclipseUiHelper;
-import com.android.ide.eclipse.adt.internal.wizards.export.ExportWizard;
-import com.android.ide.eclipse.ddms.DdmsPlugin;
-import com.android.ide.eclipse.ddms.ImageLoader;
-import com.android.sdklib.IAndroidTarget;
-import com.android.sdklib.SdkConstants;
-import com.android.sdkstats.SdkStatsService;
+import java.io.BufferedInputStream;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.PrintStream;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Calendar;
+import java.util.List;
 
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IFolder;
@@ -98,19 +77,40 @@ import org.osgi.framework.BundleContext;
 import org.osgi.framework.Constants;
 import org.osgi.framework.Version;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.io.PrintStream;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Calendar;
-import java.util.List;
+import com.android.ddmuilib.StackTracePanel;
+import com.android.ddmuilib.StackTracePanel.ISourceRevealer;
+import com.android.ddmuilib.console.DdmConsole;
+import com.android.ddmuilib.console.IDdmConsole;
+import com.android.ide.eclipse.adt.internal.VersionCheck;
+import com.android.ide.eclipse.adt.internal.editors.IconFactory;
+import com.android.ide.eclipse.adt.internal.editors.layout.LayoutEditor;
+import com.android.ide.eclipse.adt.internal.editors.menu.MenuEditor;
+import com.android.ide.eclipse.adt.internal.editors.resources.ResourcesEditor;
+import com.android.ide.eclipse.adt.internal.editors.xml.XmlEditor;
+import com.android.ide.eclipse.adt.internal.launch.AndroidLaunchController;
+import com.android.ide.eclipse.adt.internal.preferences.BuildPreferencePage;
+import com.android.ide.eclipse.adt.internal.project.AndroidClasspathContainerInitializer;
+import com.android.ide.eclipse.adt.internal.project.BaseProjectHelper;
+import com.android.ide.eclipse.adt.internal.project.ExportHelper;
+import com.android.ide.eclipse.adt.internal.project.ProjectHelper;
+import com.android.ide.eclipse.adt.internal.project.ExportHelper.IExportCallback;
+import com.android.ide.eclipse.adt.internal.resources.manager.ProjectResources;
+import com.android.ide.eclipse.adt.internal.resources.manager.ResourceFolder;
+import com.android.ide.eclipse.adt.internal.resources.manager.ResourceFolderType;
+import com.android.ide.eclipse.adt.internal.resources.manager.ResourceManager;
+import com.android.ide.eclipse.adt.internal.resources.manager.ResourceMonitor;
+import com.android.ide.eclipse.adt.internal.resources.manager.ResourceMonitor.IFileListener;
+import com.android.ide.eclipse.adt.internal.sdk.AndroidTargetParser;
+import com.android.ide.eclipse.adt.internal.sdk.LoadStatus;
+import com.android.ide.eclipse.adt.internal.sdk.Sdk;
+import com.android.ide.eclipse.adt.internal.sdk.Sdk.ITargetChangeListener;
+import com.android.ide.eclipse.adt.internal.ui.EclipseUiHelper;
+import com.android.ide.eclipse.adt.internal.wizards.export.ExportWizard;
+import com.android.ide.eclipse.ddms.DdmsPlugin;
+import com.android.ide.eclipse.ddms.ImageLoader;
+import com.android.sdklib.IAndroidTarget;
+import com.android.sdklib.SdkConstants;
+import com.android.sdkstats.SdkStatsService;
 
 /**
  * The activator class controls the plug-in life cycle
@@ -133,7 +133,15 @@ public class AdtPlugin extends AbstractUIPlugin {
 
     public final static String PREFS_EMU_OPTIONS = PLUGIN_ID + ".emuOptions"; //$NON-NLS-1$
     
-	public final static QualifiedName PROP_RES_DIRECTORY = new QualifiedName("com.android.ide.eclipse.adt", "resDirectory");
+    /**
+     * Name of the project specific property for the resource directory.
+     */
+	public final static QualifiedName PROP_RES_DIRECTORY = new QualifiedName(PLUGIN_ID, "resDirectory");
+
+    /**
+     * Name of the project specific property for the resource overlay directory.
+     */
+	public static final QualifiedName PROP_RES_OVERLAY_DIRECTORY = new QualifiedName(PLUGIN_ID, "resOverlayDirectory");
 
 
     /** singleton instance */
@@ -1453,7 +1461,7 @@ public class AdtPlugin extends AbstractUIPlugin {
         String projectSpecificResPath;
 		try {
 			projectSpecificResPath = project.getPersistentProperty(AdtPlugin.PROP_RES_DIRECTORY);
-	        if (projectSpecificResPath != null) {
+	        if (projectSpecificResPath != null && !projectSpecificResPath.equals("")) {
 	        	return projectSpecificResPath;        
 	        }
 		}

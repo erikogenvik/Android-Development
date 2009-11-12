@@ -447,7 +447,15 @@ public class PreCompilerBuilder extends BaseBuilder {
                 // get the resource folder
                 
                 IFolder resFolder = project.getFolder(AdtPlugin.getResourceLocation(project));
-                IFolder resOverlayFolder = project.getFolder(AndroidConstants.WS_SEP + "res-overlay");
+                IFolder resOverlayFolder = null;
+                try {
+	                String resOverlayDirectory = project.getPersistentProperty(AdtPlugin.PROP_RES_OVERLAY_DIRECTORY);
+	                if (resOverlayDirectory != null && !resOverlayDirectory.equals("")) {
+	                	resOverlayFolder = project.getFolder(resOverlayDirectory);
+	                }
+                } catch (CoreException e) {
+                	AdtPlugin.printErrorToConsole("Error when trying to get property for resource overlay directory.", e);
+                }
                 
                 // get the file system path
                 IPath outputLocation = mGenFolder.getLocation();
@@ -460,7 +468,7 @@ public class PreCompilerBuilder extends BaseBuilder {
                     List<String> osResOverlayPaths = new ArrayList<String>();
                     String osOutputPath = outputLocation.toOSString();
                     String osResPath = resLocation.toOSString();
-                    if (resOverlayFolder.exists()) {
+                    if (resOverlayFolder != null && resOverlayFolder.exists()) {
                     	IPath resOverLayLocation = resOverlayFolder.getLocation();
                     	if (resOverLayLocation != null) {
                     		osResOverlayPaths.add(resOverLayLocation.toOSString());

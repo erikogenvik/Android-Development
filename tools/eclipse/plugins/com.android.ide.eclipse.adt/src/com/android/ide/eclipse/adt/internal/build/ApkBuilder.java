@@ -448,7 +448,15 @@ public class ApkBuilder extends BaseBuilder {
 
                     // get the resource folder
                     IFolder resFolder = project.getFolder(AdtPlugin.getResourceLocation(project));
-                    IFolder resOverlayFolder = project.getFolder(AndroidConstants.WS_SEP + "res-overlay");
+                    IFolder resOverlayFolder = null;
+                    try {
+    	                String resOverlayDirectory = project.getPersistentProperty(AdtPlugin.PROP_RES_OVERLAY_DIRECTORY);
+    	                if (resOverlayDirectory != null && !resOverlayDirectory.equals("")) {
+    	                	resOverlayFolder = project.getFolder(resOverlayDirectory);
+    	                }
+                    } catch (CoreException e) {
+                    	AdtPlugin.printErrorToConsole("Error when trying to get property for resource overlay directory.", e);
+                    }
                     
 
                     // and the assets folder
