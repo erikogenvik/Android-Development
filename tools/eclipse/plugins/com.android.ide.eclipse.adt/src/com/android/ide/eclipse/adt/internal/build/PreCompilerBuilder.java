@@ -16,17 +16,12 @@
 
 package com.android.ide.eclipse.adt.internal.build;
 
-import com.android.ide.eclipse.adt.AdtConstants;
-import com.android.ide.eclipse.adt.AdtPlugin;
-import com.android.ide.eclipse.adt.AndroidConstants;
-import com.android.ide.eclipse.adt.internal.project.AndroidManifestParser;
-import com.android.ide.eclipse.adt.internal.project.BaseProjectHelper;
-import com.android.ide.eclipse.adt.internal.project.FixLaunchConfig;
-import com.android.ide.eclipse.adt.internal.project.XmlErrorHandler.BasicXmlErrorListener;
-import com.android.ide.eclipse.adt.internal.sdk.Sdk;
-import com.android.sdklib.AndroidVersion;
-import com.android.sdklib.IAndroidTarget;
-import com.android.sdklib.SdkConstants;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import com.android.sdklib.xml.AndroidManifest;
 
 import org.eclipse.core.resources.IContainer;
@@ -47,11 +42,19 @@ import org.eclipse.core.runtime.SubProgressMonitor;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.JavaCore;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import com.android.ide.eclipse.adt.AdtConstants;
+import com.android.ide.eclipse.adt.AdtPlugin;
+import com.android.ide.eclipse.adt.AndroidConstants;
+import com.android.ide.eclipse.adt.internal.project.AndroidManifestParser;
+import com.android.ide.eclipse.adt.internal.project.BaseProjectHelper;
+import com.android.ide.eclipse.adt.internal.project.FixLaunchConfig;
+import com.android.ide.eclipse.adt.internal.project.XmlErrorHandler.BasicXmlErrorListener;
+import com.android.ide.eclipse.adt.internal.properties.AndroidPropertyPage;
+import com.android.ide.eclipse.adt.internal.sdk.Sdk;
+import com.android.sdklib.AndroidVersion;
+import com.android.sdklib.IAndroidTarget;
+import com.android.sdklib.SdkConstants;
+import com.android.sdklib.xml.ManifestConstants;
 
 /**
  * Pre Java Compiler.
@@ -442,8 +445,14 @@ public class PreCompilerBuilder extends BaseBuilder {
                 IFolder packageFolder = getGenManifestPackageFolder(project);
 
                 // get the resource folder
+                
                 IFolder resFolder = project.getFolder(AndroidConstants.WS_RESOURCES);
-
+                String projectSpecificResPath = project.getPersistentProperty(AdtPlugin.PROP_RES_DIRECTORY);
+                if (projectSpecificResPath != null) {
+                	resFolder = project.getFolder(projectSpecificResPath);// project.getFolder(AndroidConstants.WS_SEP + "target" + AndroidConstants.WS_SEP + "generated-sources" + AndroidConstants.WS_SEP + "combined-resources" + AndroidConstants.WS_SEP + "res");
+                }
+                IFolder resOverlayFolder = project.getFolder(AndroidConstants.WS_SEP + "res-overlay");
+                
                 // get the file system path
                 IPath outputLocation = mGenFolder.getLocation();
                 IPath resLocation = resFolder.getLocation();
@@ -452,8 +461,15 @@ public class PreCompilerBuilder extends BaseBuilder {
                 // those locations have to exist for us to do something!
                 if (outputLocation != null && resLocation != null
                         && manifestLocation != null) {
+                    List<String> osResOverlayPaths = new ArrayList<String>();
                     String osOutputPath = outputLocation.toOSString();
                     String osResPath = resLocation.toOSString();
+                    if (resOverlayFolder.exists()) {
+                    	IPath resOverLayLocation = resOverlayFolder.getLocation();
+                    	if (resOverLayLocation != null) {
+                    		osResOverlayPaths.add(resOverLayLocation.toOSString());
+                    	}
+                    }                    
                     String osManifestPath = manifestLocation.toOSString();
 
                     // remove the aapt markers
@@ -489,6 +505,12 @@ public class PreCompilerBuilder extends BaseBuilder {
                     array.add(osOutputPath);
                     array.add("-M"); //$NON-NLS-1$
                     array.add(osManifestPath);
+                    if (osResOverlayPaths != null) {
+            	        for (String resOverlayPath : osResOverlayPaths) {
+            	        	array.add("-S"); //$NON-NLS-1$
+            	        	array.add(resOverlayPath);
+            	        }
+                    }
                     array.add("-S"); //$NON-NLS-1$
                     array.add(osResPath);
                     array.add("-I"); //$NON-NLS-1$

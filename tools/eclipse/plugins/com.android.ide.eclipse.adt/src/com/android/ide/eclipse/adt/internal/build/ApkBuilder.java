@@ -16,24 +16,21 @@
 
 package com.android.ide.eclipse.adt.internal.build;
 
-import com.android.ide.eclipse.adt.AdtConstants;
-import com.android.ide.eclipse.adt.AdtPlugin;
-import com.android.ide.eclipse.adt.AndroidConstants;
-import com.android.ide.eclipse.adt.internal.project.ApkInstallManager;
-import com.android.ide.eclipse.adt.internal.project.BaseProjectHelper;
-import com.android.ide.eclipse.adt.internal.project.ProjectHelper;
-import com.android.ide.eclipse.adt.internal.sdk.AndroidTargetData;
-import com.android.ide.eclipse.adt.internal.sdk.DexWrapper;
-import com.android.ide.eclipse.adt.internal.sdk.Sdk;
-import com.android.jarutils.DebugKeyProvider;
-import com.android.jarutils.JavaResourceFilter;
-import com.android.jarutils.SignedJarBuilder;
-import com.android.jarutils.DebugKeyProvider.IKeyGenOutput;
-import com.android.jarutils.DebugKeyProvider.KeytoolException;
-import com.android.jarutils.SignedJarBuilder.IZipEntryFilter;
-import com.android.prefs.AndroidLocation.AndroidLocationException;
-import com.android.sdklib.IAndroidTarget;
-import com.android.sdklib.SdkConstants;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.PrintStream;
+import java.security.GeneralSecurityException;
+import java.security.PrivateKey;
+import java.security.cert.X509Certificate;
+import java.text.DateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.Map.Entry;
 import com.android.sdklib.internal.project.ApkSettings;
 
 import org.eclipse.core.resources.IContainer;
@@ -58,20 +55,24 @@ import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jface.preference.IPreferenceStore;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.PrintStream;
-import java.security.GeneralSecurityException;
-import java.security.PrivateKey;
-import java.security.cert.X509Certificate;
-import java.text.DateFormat;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.Map;
-import java.util.Set;
-import java.util.Map.Entry;
+import com.android.ide.eclipse.adt.AdtConstants;
+import com.android.ide.eclipse.adt.AdtPlugin;
+import com.android.ide.eclipse.adt.AndroidConstants;
+import com.android.ide.eclipse.adt.internal.project.ApkInstallManager;
+import com.android.ide.eclipse.adt.internal.project.BaseProjectHelper;
+import com.android.ide.eclipse.adt.internal.project.ProjectHelper;
+import com.android.ide.eclipse.adt.internal.sdk.AndroidTargetData;
+import com.android.ide.eclipse.adt.internal.sdk.DexWrapper;
+import com.android.ide.eclipse.adt.internal.sdk.Sdk;
+import com.android.jarutils.DebugKeyProvider;
+import com.android.jarutils.JavaResourceFilter;
+import com.android.jarutils.SignedJarBuilder;
+import com.android.jarutils.DebugKeyProvider.IKeyGenOutput;
+import com.android.jarutils.DebugKeyProvider.KeytoolException;
+import com.android.jarutils.SignedJarBuilder.IZipEntryFilter;
+import com.android.prefs.AndroidLocation.AndroidLocationException;
+import com.android.sdklib.IAndroidTarget;
+import com.android.sdklib.SdkConstants;
 
 public class ApkBuilder extends BaseBuilder {
 
@@ -446,8 +447,14 @@ public class ApkBuilder extends BaseBuilder {
                     }
 
                     // get the resource folder
-                    IFolder resFolder = project.getFolder(
-                            AndroidConstants.WS_RESOURCES);
+                    IFolder resFolder = project.getFolder(AndroidConstants.WS_RESOURCES);
+                    String projectSpecificResPath = project.getPersistentProperty(AdtPlugin.PROP_RES_DIRECTORY);
+                    if (projectSpecificResPath != null) {
+                    	resFolder = project.getFolder(projectSpecificResPath);// project.getFolder(AndroidConstants.WS_SEP + "target" + AndroidConstants.WS_SEP + "generated-sources" + AndroidConstants.WS_SEP + "combined-resources" + AndroidConstants.WS_SEP + "res");
+                    }
+
+                    IFolder resOverlayFolder = project.getFolder(AndroidConstants.WS_SEP + "res-overlay");
+                    
 
                     // and the assets folder
                     IFolder assetsFolder = project.getFolder(
@@ -469,11 +476,17 @@ public class ApkBuilder extends BaseBuilder {
                         if (assetsFolder != null) {
                             osAssetsPath = assetsFolder.getLocation().toOSString();
                         }
-
+                        List<String> osResOverlayPaths = new ArrayList<String>();
+                        if (resOverlayFolder != null && resOverlayFolder.exists()) {
+                        	IPath resOverLayLocation = resOverlayFolder.getLocation();
+                        	if (resOverLayLocation != null) {
+                        		osResOverlayPaths.add(resOverLayLocation.toOSString());
+                        	}
+                        }
                         // build the default resource package
                         if (executeAapt(project, osManifestPath, osResPath,
                                 osAssetsPath, osBinPath + File.separator +
-                                AndroidConstants.FN_RESOURCES_AP_, null /*configFilter*/) == false) {
+                                AndroidConstants.FN_RESOURCES_AP_, null /*configFilter*/, osResOverlayPaths) == false) {
                             // aapt failed. Whatever files that needed to be marked
                             // have already been marked. We just return.
                             return referencedProjects;
@@ -486,7 +499,7 @@ public class ApkBuilder extends BaseBuilder {
                                         AndroidConstants.FN_RESOURCES_S_AP_;
                                 String outPath = String.format(outPathFormat, entry.getKey());
                                 if (executeAapt(project, osManifestPath, osResPath,
-                                        osAssetsPath, outPath, entry.getValue()) == false) {
+                                        osAssetsPath, outPath, entry.getValue(), osResOverlayPaths) == false) {
                                     // aapt failed. Whatever files that needed to be marked
                                     // have already been marked. We just return.
                                     return referencedProjects;
@@ -609,14 +622,17 @@ public class ApkBuilder extends BaseBuilder {
      * @param osAssetsPath The path to the assets folder. This can be null.
      * @param osOutFilePath The path to the temporary resource file to create.
      * @param configFilter The configuration filter for the resources to include
+     * @param osResOverlayPaths Any optional overlay resource paths.
      * (used with -c option, for example "port,en,fr" to include portrait, English and French
      * resources.)
      * @return true if success, false otherwise.
      */
     private boolean executeAapt(IProject project, String osManifestPath,
-            String osResPath, String osAssetsPath, String osOutFilePath, String configFilter) {
+            String osResPath, String osAssetsPath, String osOutFilePath, String configFilter, List<String> osResOverlayPaths) {
         IAndroidTarget target = Sdk.getCurrent().getTarget(project);
 
+        AdtPlugin.printToConsole(project, "Creating apk package through aapt.");
+        
         // Create the command line.
         ArrayList<String> commandArray = new ArrayList<String>();
         commandArray.add(target.getPath(IAndroidTarget.AAPT));
@@ -631,6 +647,12 @@ public class ApkBuilder extends BaseBuilder {
         }
         commandArray.add("-M"); //$NON-NLS-1$
         commandArray.add(osManifestPath);
+        if (osResOverlayPaths != null) {
+	        for (String resOverlayPath : osResOverlayPaths) {
+	            commandArray.add("-S"); //$NON-NLS-1$
+	            commandArray.add(resOverlayPath);
+	        }
+        }
         commandArray.add("-S"); //$NON-NLS-1$
         commandArray.add(osResPath);
         if (osAssetsPath != null) {

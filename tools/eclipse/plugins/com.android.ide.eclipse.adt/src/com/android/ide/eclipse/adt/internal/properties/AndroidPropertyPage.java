@@ -16,12 +16,14 @@
 
 package com.android.ide.eclipse.adt.internal.properties;
 
-import com.android.ide.eclipse.adt.internal.sdk.Sdk;
-import com.android.sdklib.IAndroidTarget;
+import java.util.Map;
 import com.android.sdklib.internal.project.ApkSettings;
-import com.android.sdkuilib.internal.widgets.SdkTargetSelector;
 
 import org.eclipse.core.resources.IProject;
+import org.eclipse.core.runtime.CoreException;
+import org.eclipse.jface.preference.DirectoryFieldEditor;
+import org.eclipse.jface.util.IPropertyChangeListener;
+import org.eclipse.jface.util.PropertyChangeEvent;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
@@ -33,6 +35,11 @@ import org.eclipse.swt.widgets.Label;
 import org.eclipse.ui.IWorkbenchPropertyPage;
 import org.eclipse.ui.dialogs.PropertyPage;
 
+import com.android.ide.eclipse.adt.AdtPlugin;
+import com.android.ide.eclipse.adt.internal.sdk.Sdk;
+import com.android.sdklib.IAndroidTarget;
+import com.android.sdkuilib.internal.widgets.ApkConfigWidget;
+import com.android.sdkuilib.internal.widgets.SdkTargetSelector;
 /**
  * Property page for "Android" project.
  * This is accessible from the Package Explorer when right clicking a project and choosing
@@ -41,7 +48,7 @@ import org.eclipse.ui.dialogs.PropertyPage;
  */
 public class AndroidPropertyPage extends PropertyPage implements IWorkbenchPropertyPage {
 
-    private IProject mProject;
+	private IProject mProject;
     private SdkTargetSelector mSelector;
     // APK-SPLIT: This is not yet supported, so we hide the UI
 //    private Button mSplitByDensity;
@@ -98,6 +105,35 @@ public class AndroidPropertyPage extends PropertyPage implements IWorkbenchPrope
             mSplitByDensity.setSelection(settings.isSplitByDpi());
             */
         }
+        
+        DirectoryFieldEditor resDirectoryFieldEditor = new DirectoryFieldEditor("resDirectory", "Resource directory", top);
+        
+        try {
+			resDirectoryFieldEditor.setStringValue(mProject.getPersistentProperty(AdtPlugin.PROP_RES_DIRECTORY));
+		}
+		catch (CoreException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+        
+        resDirectoryFieldEditor.setPropertyChangeListener(new IPropertyChangeListener() {
+			
+			@Override
+			public void propertyChange(PropertyChangeEvent event) {
+        		try {
+					mProject.setPersistentProperty(AdtPlugin.PROP_RES_DIRECTORY, event.getNewValue().toString());
+				}
+				catch (CoreException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				
+			}
+		});
+        
+
+		
+      
 
         mSelector.setSelectionListener(new SelectionAdapter() {
             @Override

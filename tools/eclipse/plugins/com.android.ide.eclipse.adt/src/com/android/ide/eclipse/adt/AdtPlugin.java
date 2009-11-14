@@ -132,6 +132,9 @@ public class AdtPlugin extends AbstractUIPlugin {
     public final static String PREFS_HOME_PACKAGE = PLUGIN_ID + ".homePackage"; //$NON-NLS-1$
 
     public final static String PREFS_EMU_OPTIONS = PLUGIN_ID + ".emuOptions"; //$NON-NLS-1$
+    
+	public final static QualifiedName PROP_RES_DIRECTORY = new QualifiedName("com.android.ide.eclipse.adt", "resDirectory");
+
 
     /** singleton instance */
     private static AdtPlugin sPlugin;
