@@ -16,13 +16,8 @@
 
 package com.android.ide.eclipse.adt.internal.editors.layout.configuration;
 
-import com.android.ddmuilib.TableHelper;
-import com.android.ide.eclipse.adt.AdtPlugin;
-import com.android.ide.eclipse.adt.internal.resources.configurations.FolderConfiguration;
-import com.android.ide.eclipse.adt.internal.sdk.LayoutDevice;
-import com.android.ide.eclipse.adt.internal.sdk.LayoutDeviceManager;
-import com.android.ide.eclipse.adt.internal.sdk.Sdk;
-import com.android.sdkuilib.ui.GridDialog;
+import java.util.Map;
+import java.util.Map.Entry;
 
 import org.eclipse.jface.dialogs.IDialogConstants;
 import org.eclipse.jface.viewers.ILabelProviderListener;
@@ -47,8 +42,13 @@ import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.Tree;
 
-import java.util.Map;
-import java.util.Map.Entry;
+import com.android.ddmuilib.TableHelper;
+import com.android.ide.eclipse.adt.AdtPlugin;
+import com.android.ide.eclipse.adt.internal.resources.configurations.FolderConfiguration;
+import com.android.ide.eclipse.adt.internal.sdk.LayoutDevice;
+import com.android.ide.eclipse.adt.internal.sdk.LayoutDeviceManager;
+import com.android.ide.eclipse.adt.internal.sdk.Sdk;
+import com.android.sdkuilib.ui.GridDialog;
 
 /**
  * Dialog to view the layout devices with action button to create/edit/delete/copy layout devices

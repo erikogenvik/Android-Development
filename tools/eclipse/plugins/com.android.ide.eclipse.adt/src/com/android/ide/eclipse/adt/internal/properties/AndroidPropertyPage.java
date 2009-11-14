@@ -16,11 +16,7 @@
 
 package com.android.ide.eclipse.adt.internal.properties;
 
-import java.util.Map;
-import com.android.sdklib.internal.project.ApkSettings;
-
 import org.eclipse.core.resources.IContainer;
-import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
@@ -42,7 +38,7 @@ import org.eclipse.ui.dialogs.PropertyPage;
 import com.android.ide.eclipse.adt.AdtPlugin;
 import com.android.ide.eclipse.adt.internal.sdk.Sdk;
 import com.android.sdklib.IAndroidTarget;
-import com.android.sdkuilib.internal.widgets.ApkConfigWidget;
+import com.android.sdklib.internal.project.ApkSettings;
 import com.android.sdkuilib.internal.widgets.SdkTargetSelector;
 /**
  * Property page for "Android" project.
